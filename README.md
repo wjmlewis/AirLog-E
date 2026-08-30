@@ -22,9 +22,13 @@ All the components are enclosed in a 3D printed enclosure. It's split into 3 par
 
 Theres the **front plate** which attaches to the main section via **M2.5 screws**. (pictured below) The M2.5 screws also hold the display in place.
 ![alt text](images/image-1.png) <br>
+#
 The **back plate** is connected to the main section via **M3 screws** and **M3 heatset inserts** (pictured below)
+#
 ![alt text](images/image-2.png) <br>
+#
 The **main section** is where all of the electronics are housed. (see photo with battery, front plate, and display removed)
+#
 ![alt text](<images/Screenshot 2026-08-29 192938.png>)
 
 ## Electronics
