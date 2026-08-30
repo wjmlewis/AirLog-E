@@ -19,9 +19,9 @@ E-ink or e-paper, is the technology being used in kindles, price tags etc. It on
 
 
 All the components are enclosed in a 3D printed enclosure. It's split into 3 parts which should be (hopefully) **really easy to assemble and print.** <br> (all 3 parts can fit on a Bambu A1 Mini Build Plate, pictured below)
-
+#
 ![alt text](images/bambu.png) <br>
-
+#
 Theres the **front plate** which attaches to the main section via **M2.5 screws**. (pictured below) The M2.5 screws also hold the display in place.
 ![alt text](images/image-1.png) <br>
 #
