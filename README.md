@@ -61,7 +61,7 @@ Heatset inserts are great beacause it provides a **metal thread** for your screw
 This wire is a **great size** as it isn't too big and fiddly to work with and solder but thick enough to carry voltages from the battery. I've chosen 3 colors - **Red, Black and Orange.** They are used for **Power, Ground and Data** respectively. You can use any color as its just for aesthetic purposes.
 
 ### **Resistors**
-This **entire** project just needs **two** 100kΩ resistors for the voltage divider (which steps the battery voltage to a safe enough voltage that the ESP32's GPIO can read)
+This **entire** project just needs **two** 100kΩ resistors (these should be heatshrunk for a cleaner look and to reduce the risk of a short circuit.) for the voltage divider which steps the battery voltage to a safe enough voltage that the ESP32's GPIO 0 can read.
 
 ##
 ![wiring-diagram](images/image-3.png)
