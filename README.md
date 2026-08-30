@@ -73,10 +73,10 @@ These things include:
  - **The time** displayed on screen. This requires NTP (network time protocol) which I can't add yet.
  - **Making the display look futuristic** - At the moment, the sensors are displayed as dynamic text on the screen using the Dosis font. I'm unable to physically see what this looks like yet!
 
+ **Rest assured, I will implement these features as soon as I get the parts!!**
+
 ## How can I replicate this project?
 First, you'll need Home Assistant. It's not strictly required but then the device won't report data anywhere, you won't be able to push OTA updates, etc. To flash the firmware, either use the Home Assistant Add-on (recommended 100%), or use ESPhome in the command line with python. You also need to adjust secrets.yaml to include your WiFi credentials, API key, encryption key etc. Then 3D print the 3 parts (front plate, main section, back plate) and finally order the components. (make sure to refer to the [wiring diagram](<images/AirLog Wiring DiagramV2.png>))
-
- **Rest assured, I will implement these features as soon as I get the parts!!**
 
  ## This project was made by William and is for the Hackclub Stardance Challenge!
  ### Credits also go to the ESPhome docs as I couldn't do it without them!
