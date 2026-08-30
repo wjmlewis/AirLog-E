@@ -1,0 +1,120 @@
+esphome:
+  name: airlog-e
+
+esp32:
+  board: seeed_xiao_esp32c6
+  framework:
+    type: esp-idf
+
+wifi:
+  networks:
+    - ssid: !secret home_wifi_ssid
+      password: !secret home_wifi_password
+    - ssid: !secret hotspot_ssid
+      password: !secret hotspot_password
+
+api: 
+  port: 6053
+  batch_delay: 50ms
+  listen_backlog: 2
+  max_connections: 6
+  max_send_queue: 10
+  encryption:
+    key: !secret EncryptionKey
+  reboot_timeout: 30min
+
+logger:
+  level: DEBUG
+
+ota:
+  - platform: esphome
+    password: !secret "ota_password"
+
+deep_sleep:
+  run_duration: 30s
+  sleep_duration: 60s
+
+i2c:
+  sda: GPIO22
+  scl: GPIO23
+
+sensor:
+  - platform: sht4x
+    update_interval: 10s
+    temperature:
+      name: "Temperature"
+      id: temp_sensor
+    humidity:
+      name: "Humidity"
+      id: humidity_sensor
+
+  - platform: sgp4x
+    update_interval: 10s
+    voc_index:
+      name: "VOC Index"
+      id: "voc_index"
+    compensation:
+      humidity_source: humidity_sensor
+      temperature_source: temp_sensor
+
+  - platform: internal_temperature
+    name: "Internal Temperature"
+    update_interval: 10s
+  
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 10s
+
+  - platform: uptime
+    name: "Uptime"
+    disabled_by_default: true # Stops cluttering HA with sensors you might not need.
+    update_interval: 10s
+
+  - platform: adc
+    update_interval: 10s
+    pin: GPIO0
+    name: "Battery Voltage"
+    id: battery_voltage
+    filters:
+      - multiply: 2.0 # we halved the voltage with the voltage divider so this multiplys it by 2 to compensate.
+    attenuation: auto
+
+  - platform: template
+    name: "Battery Percentage"
+    update_interval: 10s
+    lambda: |-
+      return id (battery_voltage).state;
+    filters:
+      - calibrate_linear:
+        - 3.5 -> 0
+        - 4.2 -> 100
+      - clamp:
+          min_value: 0
+          max_value: 100
+
+text_sensor:
+  - platform: version
+    name: "ESPhome Version"
+    disabled_by_default: true
+
+spi:
+  mosi_pin: GPIO18
+  clk_pin: GPIO19
+
+font:
+  - file: "gfonts://Dosis@800"
+    id: dosis_extrabold
+    size: 20
+    glyphs: "°"
+  
+display:
+  - platform: waveshare_epaper
+    cs_pin: GPIO21
+    dc_pin: GPIO16
+    busy_pin: GPIO17
+    reset_pin: GPIO2
+    model: 1.54inv2
+    lambda: |-
+      it.printf(0, 0, id(dosis_extrabold), "Temperature: %.1f°C, Humidity: %.1f%%", id (temp_sensor).state, id(humidity_sensor).state); # shows temp and humidity on one line
+      it.printf(0, 80, id(dosis_extrabold), "VOC: %.0f", id(voc_index).state); # shows VOC index just below halfway down the screen
+
