@@ -8,7 +8,7 @@ This device is the called the AirLog-E (Beacuse it ***logs*** the ***air*** and 
 - A large **2000mah Lipo** that can keep the device active and running for a few days on one charge! (can be increased based on deep sleep times)
 - It's ability to go into **deep sleep**! At the moment, it wakes up every 90s, updates the sensors, sends it to HA then goes back to sleep after 30s. This can easily be changed to a 5min or even 10min sleep for battery life up to 3 weeks.
 - Very **portable**! It's possible to take it with you, connect to your school/office/hotspot's wifi to keep the time updated. In the YAML code, i've predefined **2** networks but this can be expanded.
-- If you ever want to change a parameter, you **don't** need to plug it into your computer. ESPhome fully supports OTA **(Over The Air) updates** and I've already written it into the code
+- If you ever want to change a parameter, you **don't** need to plug it into your computer. ESPhome fully supports OTA **(Over The Air) updates** and I've already written it into the code. You have to use the **ESPhome add-on for Home Assistant** or download **ESPhome with python** to flash the firmware initially.
 - **Super accurate** sensors! The SGP-40 (the VOC sensor) utilises the temp and humidity readings from the SHT41 to get a more accurate VOC index.
 
 ## E-Ink? What's that??
