@@ -15,7 +15,7 @@ This device is the called the AirLog-E (Beacuse it ***logs*** the ***air*** and 
 E-ink or e-paper, is the technology being used in kindles, price tags etc. It only requires a small amount of current to update, and then uses **nothing** when static. You could even unplug the display and the image would stick. These are perfect for small battery powered projects. The only downside to them is their refresh rate. (can take up to **2s** to fully refresh)
 
 ## Hardware
-(to see the full BOM (bill of materials) click **here**) 
+(to see the full BOM (bill of materials) click [here](BOM/AirLog-BOMv2.csv))
 
 
 All the components are enclosed in a 3D printed enclosure. It's split into 3 parts which should be (hopefully) **really easy to assemble.**
