@@ -18,7 +18,7 @@ E-ink or e-paper, is the technology being used in kindles, price tags etc. It on
 (to see the full BOM (bill of materials) click [here](BOM/AirLog-BOMv2.csv))
 
 
-All the components are enclosed in a 3D printed enclosure. It's split into 3 parts which should be (hopefully) **really easy to assemble and print.** <br> (all 3 parts can fit on a Bambu A1 Mini Build Plate, pictured below)
+All the components are enclosed in a 3D printed enclosure which was designed in fusion360. It's split into 3 parts which should be (hopefully) **really easy to assemble and print.** <br> (all 3 parts can fit on a Bambu A1 Mini Build Plate, pictured below)
 #
 ![alt text](images/bambu.png) <br>
 #
@@ -75,8 +75,11 @@ These things include:
 
  **Rest assured, I will implement these features as soon as I get the parts!!**
 
+## How did I make this?
+I first imported 3D models of the components (from various places such as **grabcad**) into the **Fusion360** project so everything was true to life scale, then created the enclosure around them.
+
 ## How can I replicate this project?
-First, you'll need Home Assistant. It's not strictly required but then the device won't report data anywhere, you won't be able to push OTA updates, etc. To flash the firmware, either use the Home Assistant Add-on (recommended 100%), or use ESPhome in the command line with python. You also need to adjust secrets.yaml to include your WiFi credentials, API key, encryption key etc. Then 3D print the 3 parts (front plate, main section, back plate) and finally order the components. (make sure to refer to the [wiring diagram](<images/AirLog Wiring DiagramV2.png>))
+First, you'll need Home Assistant.(This can be installed on anything, eg. a Pi, old PC etc) It's not strictly required but then the device won't report data anywhere, you won't be able to push OTA updates, etc. To flash the firmware, either use the Home Assistant Add-on (recommended 100%), or use ESPhome in the command line with python. You also need to adjust secrets.yaml to include your WiFi credentials, API key, encryption key etc. Then 3D print the 3 parts (front plate, main section, back plate, you can find these in the repo) and finally order the components. When everything is in front of you, open up the 3D files **with** the placeholder components so you can see where everything slots and screws in (make sure to refer to the [wiring diagram](<images/AirLog Wiring DiagramV2.png>))
 
  ## This project was made by William and is for the Hackclub Stardance Challenge!
  ### Credits also go to the ESPhome docs as I couldn't do it without them!
