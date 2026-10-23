@@ -1,15 +1,41 @@
 esphome:
   name: airlog-e
+  includes:
+    - rtc_vars.h
+  on_boot:
+    priority: -100
+    then:
+      - lambda: |-
+          rtc_check();                              // reset RTC data if its layout changed (e.g. after OTA)
+          id(voc_cycle) = (wake_count % 10 == 0);   // long wake so the VOC algorithm can settle
+          id(draw_cycle) = (wake_count % 3 == 0);   // redraw screen every 3rd wake (~5 min)
+          wake_count++;
+      - script.execute: sleep_controller
+      - script.execute: boot_blink
 
 esp32:
   board: seeed_xiao_esp32c6
   framework:
     type: esp-idf
 
+globals:
+  - id: voc_cycle
+    type: bool
+    initial_value: 'false'
+  - id: draw_cycle
+    type: bool
+    initial_value: 'false'
+
 wifi:
+  fast_connect: true
   networks:
     - ssid: !secret home_wifi_ssid
       password: !secret home_wifi_password
+      manual_ip:
+        static_ip: !secret static_ip
+        gateway: !secret gateway
+        subnet: 255.255.255.0
+        dns1: !secret gateway
     - ssid: !secret hotspot_ssid
       password: !secret hotspot_password
 
@@ -31,12 +57,28 @@ ota:
     password: !secret "ota_password"
 
 deep_sleep:
-  run_duration: 30s
   sleep_duration: 60s
+  id: deep_sleep_1
+
+# Time comes from Home Assistant (used for the "updated" stamp on the screen)
+time:
+  - platform: homeassistant
+    id: ha_time
 
 i2c:
   sda: GPIO22
   scl: GPIO23
+
+# Battery sensing toggle. The battery is fitted, but the voltage divider isn't,
+# so this defaults to OFF. Turn it on in HA if you ever wire the divider to GPIO0.
+# (Flip it while the device is awake, it can't receive commands while asleep.)
+switch:
+  - platform: template
+    name: "Battery Sensing"
+    id: has_battery
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    entity_category: config
 
 sensor:
   - platform: sht4x
@@ -53,6 +95,10 @@ sensor:
     voc_index:
       name: "VOC Index"
       id: "voc_index"
+      on_value:
+        then:
+          - lambda: |-
+              if (!isnan(x) && x > 0) last_voc = x;
     compensation:
       humidity_source: humidity_sensor
       temperature_source: temp_sensor
@@ -63,6 +109,7 @@ sensor:
   
   - platform: wifi_signal
     name: "WiFi Signal"
+    id: wifi_rssi
     update_interval: 10s
 
   - platform: uptime
@@ -77,13 +124,19 @@ sensor:
     id: battery_voltage
     filters:
       - multiply: 2.0 # we halved the voltage with the voltage divider so this multiplys it by 2 to compensate.
+      # Divider not fitted? Drop the (floating, meaningless) reading instead of sending it to HA.
+      - lambda: |-
+          if (id(has_battery).state) return x;
+          return {};
     attenuation: auto
 
   - platform: template
     name: "Battery Percentage"
+    id: battery_pct
     update_interval: 10s
     lambda: |-
-      return id (battery_voltage).state;
+      if (!id(has_battery).state) return NAN;
+      return id(battery_voltage).state;
     filters:
       - calibrate_linear:
         - 3.5 -> 0
@@ -91,6 +144,37 @@ sensor:
       - clamp:
           min_value: 0
           max_value: 100
+
+script:
+  - id: sleep_controller
+    then:
+      - delay: !lambda 'return id(voc_cycle) ? 120000 : 25000;'
+      - if:
+          condition:
+            lambda: 'return id(draw_cycle);'
+          then:
+            - lambda: 'hist_push(id(temp_sensor).state, id(humidity_sensor).state, last_voc);'  # log a trend point
+            - component.update: epaper     # draw once, right before sleeping
+            - delay: 6s                    # let the e-paper finish refreshing
+      - deep_sleep.enter: deep_sleep_1
+  - id: boot_blink
+    then:
+      - light.turn_on: status_led
+      - delay: 200ms
+      - light.turn_off: status_led
+
+output:
+  - platform: gpio
+    pin:
+      number: GPIO15
+      inverted: true
+    id: status_led_out
+
+light:
+  - platform: binary
+    id: status_led
+    output: status_led_out
+    internal: true
 
 text_sensor:
   - platform: version
@@ -103,20 +187,107 @@ spi:
 
 font:
   - file: "gfonts://Dosis@800"
-    id: dosis_extrabold
+    id: dosis_hero
+    size: 40
+    glyphs: "0123456789.- "
+  - file: "gfonts://Dosis@800"
+    id: dosis_med
     size: 18
-    glyphs: "0123456789.,:%° abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    glyphs: "0123456789.,:%°-/? abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  - file: "gfonts://Dosis@800"
+    id: dosis_small
+    size: 13
+    glyphs: "0123456789.,:%°-/? abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
   
 display:
   - platform: waveshare_epaper
+    id: epaper
     cs_pin: GPIO21
     dc_pin: GPIO16
     busy_pin: GPIO17
     reset_pin: GPIO2
     model: 1.54inv2
+    rotation: 270
+    update_interval: never
     lambda: |-
-      it.printf(0, 0, id(dosis_extrabold), "Temp: %.1f°C", id(temp_sensor).state);
-      it.printf(0, 30, id(dosis_extrabold), "Hum: %.1f%%", id(humidity_sensor).state);
-      it.printf(0, 60, id(dosis_extrabold), "VOC: %.0f", id(voc_index).state);
+      // ================= HEADER (y 0-23) =================
+      it.print(4, 1, id(dosis_med), "AirLog-E");
 
+      float pct = id(battery_pct).state;
+      bool pct_ok = id(has_battery).state && !isnan(pct);
+      if (pct_ok)
+        it.printf(134, 1, id(dosis_med), TextAlign::TOP_RIGHT, "%.0f%%", pct);
+      else
+        it.print(134, 1, id(dosis_med), TextAlign::TOP_RIGHT, "?%");
+      draw_battery(it, 138, 4, pct_ok ? pct : NAN);
+      draw_wifi(it, 176, 18, id(wifi_rssi).state);
+      it.horizontal_line(0, 23, 200);
 
+      // ================= HERO TEMPERATURE (y 25-73) =================
+      char tb[12];
+      snprintf(tb, sizeof(tb), "%.1f", id(temp_sensor).state);
+      int x1, y1, tw, th;
+      it.get_text_bounds(4, 25, tb, id(dosis_hero), TextAlign::TOP_LEFT, &x1, &y1, &tw, &th);
+      it.print(4, 25, id(dosis_hero), tb);
+      it.print(4 + tw + 3, 29, id(dosis_med), "°C");
+
+      // Temperature trend arrow, just after the unit (changes of 0.5°C or more over ~30 min)
+      int ux1, uy1, uw, uh;
+      it.get_text_bounds(4 + tw + 3, 29, "°C", id(dosis_med), TextAlign::TOP_LEFT, &ux1, &uy1, &uw, &uh);
+      int ax = 4 + tw + 3 + uw + 10;
+      if (ax > 140) ax = 140;  // keep clear of the UPDATED block
+      draw_arrow(it, ax, y1 + th / 2, hist_trend(temp_hist, 0.5f, 10.0f));
+
+      // Last update time (top right of the hero area)
+      it.print(196, 27, id(dosis_small), TextAlign::TOP_RIGHT, "UPDATED");
+      auto now = id(ha_time).now();
+      if (now.is_valid())
+        it.strftime(196, 41, id(dosis_med), TextAlign::TOP_RIGHT, "%H:%M", now);
+      else
+        it.print(196, 41, id(dosis_med), TextAlign::TOP_RIGHT, "--:--");
+
+      // ================= HUMIDITY + VOC ROWS (y 75-119) =================
+      it.print(4, 75, id(dosis_med), "Humidity");
+      char hb[10];
+      snprintf(hb, sizeof(hb), "%.0f%%", id(humidity_sensor).state);
+      it.print(196, 75, id(dosis_med), TextAlign::TOP_RIGHT, hb);
+      // Humidity arrow, left of the value (changes of 3% or more over ~30 min)
+      it.get_text_bounds(196, 75, hb, id(dosis_med), TextAlign::TOP_RIGHT, &x1, &y1, &tw, &th);
+      draw_arrow(it, x1 - 9, 75 + 11, hist_trend(hum_hist, 3.0f, 10.0f));
+
+      it.print(4, 97, id(dosis_med), "VOC");
+      float v = last_voc;
+      if (isnan(v)) {
+        it.print(196, 97, id(dosis_med), TextAlign::TOP_RIGHT, "--");
+      } else {
+        const char *lbl = v <= 100 ? "Good" : (v <= 200 ? "Fair" : (v <= 300 ? "Poor" : "Bad"));
+        char vb[20];
+        snprintf(vb, sizeof(vb), "%.0f  %s", v, lbl);
+        it.print(196, 97, id(dosis_med), TextAlign::TOP_RIGHT, vb);
+        // VOC arrow, left of the value (changes of 20 index points or more over ~30 min)
+        it.get_text_bounds(196, 97, vb, id(dosis_med), TextAlign::TOP_RIGHT, &x1, &y1, &tw, &th);
+        draw_arrow(it, x1 - 9, 97 + 11, hist_trend(voc_hist, 20.0f, 1.0f));
+      }
+
+      // VOC gauge, scale 0-500, ticks at 100 / 200 / 300
+      it.rectangle(4, 122, 192, 9);
+      if (!isnan(v)) {
+        int gw = (int) (188.0f * fminf(v, 500.0f) / 500.0f);
+        if (gw > 0) it.filled_rectangle(6, 124, gw, 5);
+      }
+      for (int k = 1; k <= 3; k++) {
+        int tx = 4 + (192 * k) / 5;
+        it.line(tx, 131, tx, 133);
+      }
+
+      // ================= TREND SPARKLINES (y 136-194) =================
+      float mn, mx;
+      if (draw_spark(it, temp_hist, 2, 154, 38, 2.0f, 10.0f, mn, mx))
+        it.printf(2, 136, id(dosis_small), "TEMP %.0f-%.0f°", mn, mx);
+      else
+        it.print(2, 136, id(dosis_small), "TEMP");
+
+      if (draw_spark(it, voc_hist, 102, 154, 38, 50.0f, 1.0f, mn, mx))
+        it.printf(102, 136, id(dosis_small), "VOC %.0f-%.0f", mn, mx);
+      else
+        it.print(102, 136, id(dosis_small), "VOC");
