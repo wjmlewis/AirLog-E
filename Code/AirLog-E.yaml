@@ -8,7 +8,7 @@ esphome:
       - lambda: |-
           rtc_check();                              // reset RTC data if its layout changed (e.g. after OTA)
           id(voc_cycle) = (wake_count % 10 == 0);   // long wake so the VOC algorithm can settle
-          id(draw_cycle) = (wake_count % 3 == 0);   // redraw screen every 3rd wake
+          id(draw_cycle) = (wake_count % 3 == 0);   // redraw screen every 3rd wake (~5 min)
           wake_count++;
       - script.execute: sleep_controller
       - script.execute: boot_blink
@@ -114,7 +114,7 @@ sensor:
 
   - platform: uptime
     name: "Uptime"
-    disabled_by_default: true 
+    disabled_by_default: true # Stops cluttering HA with sensors you might not need.
     update_interval: 10s
 
   - platform: adc
@@ -124,6 +124,7 @@ sensor:
     id: battery_voltage
     filters:
       - multiply: 2.0 # we halved the voltage with the voltage divider so this multiplys it by 2 to compensate.
+      # Divider not fitted? Drop the (floating, meaningless) reading instead of sending it to HA.
       - lambda: |-
           if (id(has_battery).state) return x;
           return {};
@@ -152,9 +153,9 @@ script:
           condition:
             lambda: 'return id(draw_cycle);'
           then:
-            - lambda: 'hist_push(id(temp_sensor).state, id(humidity_sensor).state, last_voc);' 
-            - component.update: epaper     
-            - delay: 6s                    
+            - lambda: 'hist_push(id(temp_sensor).state, id(humidity_sensor).state, last_voc);'  # log a trend point
+            - component.update: epaper     # draw once, right before sleeping
+            - delay: 6s                    # let the e-paper finish refreshing
       - deep_sleep.enter: deep_sleep_1
   - id: boot_blink
     then:
